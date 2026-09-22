@@ -25,8 +25,8 @@ pipeline {
                     string(credentialsId: 'YANDEX_DIRECT_TOKEN', variable: 'YANDEX_DIRECT_TOKEN')
                 ]) {
                     sh 'python3 --version'
-                    // Query the token account itself, without Client-Login.
-                    sh 'python3 get_campaigns.py --without-client-login'
+                    // Query campaigns for the client selected by YANDEX_DIRECT_LOGIN.
+                    sh 'python3 get_campaigns.py'
                 }
             }
         }
