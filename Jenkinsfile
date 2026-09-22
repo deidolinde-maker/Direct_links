@@ -20,8 +20,8 @@ pipeline {
                     string(credentialsId: 'YANDEX_DIRECT_LOGIN', variable: 'YANDEX_DIRECT_LOGIN'),
                     string(credentialsId: 'YANDEX_DIRECT_TOKEN', variable: 'YANDEX_DIRECT_TOKEN')
                 ]) {
-                    bat 'python --version'
-                    bat 'python get_campaigns.py'
+                    sh 'python3 --version'
+                    sh 'python3 get_campaigns.py'
                 }
             }
         }
