@@ -30,3 +30,5 @@ prints campaign ID, name, type, state, and status.
 
 `get_ads.py` repeats the campaign lookup and sends read-only `POST` requests to
 `https://api.direct.yandex.com/json/v5/ads`, then prints ad IDs and `Href` URLs.
+Campaign IDs are sent in batches and all `/ads` pages are read. The API quota
+itself is not bypassed; pagination only prevents truncating the result set.

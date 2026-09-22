@@ -14,14 +14,14 @@ ADS_API_URL = "https://api.direct.yandex.com/json/v5/ads"
 CAMPAIGN_BATCH_SIZE = 10
 
 
-def request_ads_page(token: str, login: str, campaign_ids: list[int]) -> list[dict]:
+def request_ads_page(token: str, login: str, campaign_ids: list[int], offset: int) -> tuple[list[dict], int | None]:
     payload = {
         "method": "get",
         "params": {
             "SelectionCriteria": {"CampaignIds": campaign_ids},
             "FieldNames": ["Id", "CampaignId", "AdGroupId", "State", "Status"],
             "TextAdFieldNames": ["Href"],
-            "Page": {"Limit": 1000, "Offset": 0},
+            "Page": {"Limit": 1000, "Offset": offset},
         },
     }
     headers = {
@@ -53,7 +53,22 @@ def request_ads_page(token: str, login: str, campaign_ids: list[int]) -> list[di
 
     if "error" in result:
         raise RuntimeError(f"Yandex Direct API error: {json.dumps(result['error'], ensure_ascii=False)}")
-    return result.get("result", {}).get("Ads", [])
+    direct_result = result.get("result", {})
+    return direct_result.get("Ads", []), direct_result.get("LimitedBy")
+
+
+def load_ads(token: str, login: str, campaign_ids: list[int]) -> list[dict]:
+    ads: list[dict] = []
+    for start in range(0, len(campaign_ids), CAMPAIGN_BATCH_SIZE):
+        batch = campaign_ids[start : start + CAMPAIGN_BATCH_SIZE]
+        offset = 0
+        while True:
+            page, limited_by = request_ads_page(token, login, batch, offset)
+            ads.extend(page)
+            if not page or len(page) < 1000 or limited_by is None:
+                break
+            offset = int(limited_by)
+    return ads
 
 
 def main() -> int:
@@ -62,9 +77,7 @@ def main() -> int:
         login = required_env("YANDEX_DIRECT_LOGIN")
         campaigns = load_campaigns(token, login)
         campaign_ids = [int(item["Id"]) for item in campaigns if item.get("Id") is not None]
-        ads: list[dict] = []
-        for start in range(0, len(campaign_ids), CAMPAIGN_BATCH_SIZE):
-            ads.extend(request_ads_page(token, login, campaign_ids[start : start + CAMPAIGN_BATCH_SIZE]))
+        ads = load_ads(token, login, campaign_ids)
     except (RuntimeError, KeyError, ValueError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
