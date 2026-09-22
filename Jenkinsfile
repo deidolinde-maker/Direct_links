@@ -25,9 +25,10 @@ pipeline {
                     string(credentialsId: 'YANDEX_DIRECT_TOKEN', variable: 'YANDEX_DIRECT_TOKEN')
                 ]) {
                     sh 'python3 --version'
-                    sh 'python3 get_campaigns.py'
-                    sh 'python3 get_ads.py'
-                    sh 'python3 get_campaign_urls.py "$DIRECT_CAMPAIGN_ID"'
+                    // Temporarily disabled: produces a very large diagnostic log.
+                    // sh 'python3 get_campaigns.py'
+                    // sh 'python3 get_ads.py'
+                    sh 'python3 get_campaign_urls.py "${DIRECT_CAMPAIGN_ID:-109848388}"'
                 }
             }
         }

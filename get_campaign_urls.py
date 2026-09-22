@@ -73,7 +73,8 @@ def ad_field_names(campaign_type: str) -> tuple[str, str]:
 
 
 def main() -> int:
-    campaign_id = int(sys.argv[1]) if len(sys.argv) > 1 else 109848388
+    raw_campaign_id = sys.argv[1].strip() if len(sys.argv) > 1 else ""
+    campaign_id = int(raw_campaign_id or "109848388")
     try:
         token = required_env("YANDEX_DIRECT_TOKEN")
         login = required_env("YANDEX_DIRECT_LOGIN")
