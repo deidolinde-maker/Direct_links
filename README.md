@@ -32,3 +32,7 @@ prints campaign ID, name, type, state, and status.
 `https://api.direct.yandex.com/json/v5/ads`, then prints ad IDs and `Href` URLs.
 Campaign IDs are sent in batches and all `/ads` pages are read. The API quota
 itself is not bypassed; pagination only prevents truncating the result set.
+
+`get_campaign_urls.py` probes one campaign by ID. The Jenkins parameter
+`DIRECT_CAMPAIGN_ID` defaults to `109848388`; the script first reads the
+campaign type and then requests the matching `Href` field for its ads.
