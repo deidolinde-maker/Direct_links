@@ -22,6 +22,7 @@ pipeline {
                 ]) {
                     sh 'python3 --version'
                     sh 'python3 get_campaigns.py'
+                    sh 'python3 get_ads.py'
                 }
             }
         }
