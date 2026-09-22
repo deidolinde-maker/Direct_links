@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import argparse
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -99,9 +100,16 @@ def load_campaigns(token: str, login: str) -> list[dict]:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--without-client-login",
+        action="store_true",
+        help="Do not send Client-Login; query the account associated with the token",
+    )
+    args = parser.parse_args()
     try:
         token = required_env("YANDEX_DIRECT_TOKEN")
-        login = required_env("YANDEX_DIRECT_LOGIN")
+        login = "" if args.without_client_login else required_env("YANDEX_DIRECT_LOGIN")
         campaigns = load_campaigns(token, login)
     except RuntimeError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)

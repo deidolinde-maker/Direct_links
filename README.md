@@ -36,3 +36,7 @@ itself is not bypassed; pagination only prevents truncating the result set.
 `get_campaign_urls.py` probes one campaign by ID. The Jenkins parameter
 `DIRECT_CAMPAIGN_ID` defaults to `109848388`; the script first reads the
 campaign type and then requests the matching `Href` field for its ads.
+
+`get_campaigns.py --without-client-login` performs the same read-only campaign
+request without the `Client-Login` header. This checks the account associated
+with the OAuth token rather than one selected client account.
