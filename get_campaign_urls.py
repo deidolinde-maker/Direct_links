@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import argparse
 import sys
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -10,12 +11,15 @@ from urllib.request import Request, urlopen
 from get_campaigns import required_env
 
 
-API_ROOT = "https://api.direct.yandex.com/json/v5"
+API_ROOTS = {
+    "v5": "https://api.direct.yandex.com/json/v5",
+    "v501": "https://api.direct.yandex.com/json/v501",
+}
 
 
-def post_json(path: str, token: str, login: str, payload: dict) -> dict:
+def post_json(api_root: str, path: str, token: str, login: str, payload: dict) -> dict:
     request = Request(
-        f"{API_ROOT}/{path}",
+        f"{api_root}/{path}",
         data=json.dumps(payload).encode("utf-8"),
         headers={
             "Authorization": f"Bearer {token}",
@@ -40,8 +44,9 @@ def post_json(path: str, token: str, login: str, payload: dict) -> dict:
     return result.get("result", {})
 
 
-def campaign_info(token: str, login: str, campaign_id: int) -> dict:
+def campaign_info(api_root: str, token: str, login: str, campaign_id: int) -> dict:
     result = post_json(
+        api_root,
         "campaigns",
         token,
         login,
@@ -73,14 +78,19 @@ def ad_field_names(campaign_type: str) -> tuple[str, str]:
 
 
 def main() -> int:
-    raw_campaign_id = sys.argv[1].strip() if len(sys.argv) > 1 else ""
-    campaign_id = int(raw_campaign_id or "109848388")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("campaign_id", nargs="?", default="109848388")
+    parser.add_argument("--api-version", choices=API_ROOTS, default="v5")
+    args = parser.parse_args()
+    campaign_id = int(args.campaign_id)
+    api_root = API_ROOTS[args.api_version]
     try:
         token = required_env("YANDEX_DIRECT_TOKEN")
         login = required_env("YANDEX_DIRECT_LOGIN")
-        campaign = campaign_info(token, login, campaign_id)
+        campaign = campaign_info(api_root, token, login, campaign_id)
         field_name, nested_name = ad_field_names(campaign["Type"])
         result = post_json(
+            api_root,
             "ads",
             token,
             login,
