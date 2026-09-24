@@ -27,6 +27,7 @@ pipeline {
                     sh 'python3 --version'
                     // Merge ad-level URLs with campaign-level URLs from Reports.
                     sh 'python3 export_all_urls.py'
+                    archiveArtifacts artifacts: 'urls.json', fingerprint: true
                 }
             }
         }

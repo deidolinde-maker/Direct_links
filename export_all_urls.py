@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from urllib.parse import urlparse
 
 from export_campaign_urls import request_report
 from direct_logins import required_logins
@@ -11,9 +16,35 @@ from get_ads import load_ads
 from get_campaigns import load_campaigns, required_env
 
 
+def is_valid_url(value: str) -> bool:
+    parsed = urlparse(value.strip())
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+
+
+def write_urls_file(path: Path, url_rows: dict[str, dict], stats: dict[str, int]) -> None:
+    payload = {
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "stats": stats,
+        "urls": [
+            {
+                "url": url,
+                "campaign_ids": sorted(row["campaign_ids"]),
+                "sources": sorted(row["sources"]),
+                "impressions": row["impressions"],
+            }
+            for url, row in sorted(url_rows.items())
+        ],
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = path.with_suffix(path.suffix + ".tmp")
+    temporary_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    temporary_path.replace(path)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--date-range", choices=("LAST_30_DAYS", "ALL_TIME"), default="LAST_30_DAYS")
+    parser.add_argument("--output", default=os.getenv("URLS_FILE", "urls.json"))
     args = parser.parse_args()
     try:
         token = required_env("YANDEX_DIRECT_TOKEN")
@@ -21,6 +52,7 @@ def main() -> int:
         campaigns_count = 0
         ads_count = 0
         report_rows_count = 0
+        filtered_rows_count = 0
         url_rows: dict[str, dict] = {}
         ad_url_count = 0
 
@@ -34,7 +66,8 @@ def main() -> int:
             for ad in ads:
                 nested = ad.get("TextAd") or ad.get("TextImageAd") or ad.get("ResponsiveAd") or {}
                 href = nested.get("Href") or ad.get("Href") or ""
-                if not href:
+                if not is_valid_url(href):
+                    filtered_rows_count += 1
                     continue
                 ad_url_count += 1
                 row = url_rows.setdefault(href, {"sources": set(), "campaign_ids": set(), "impressions": ""})
@@ -54,7 +87,8 @@ def main() -> int:
                             continue
                         report_rows_count += 1
                         campaign_id, _name, _kind, url, impressions = columns[:5]
-                        if not url:
+                        if not is_valid_url(url):
+                            filtered_rows_count += 1
                             continue
                         row = url_rows.setdefault(url, {"sources": set(), "campaign_ids": set(), "impressions": ""})
                         row["sources"].add("campaign_report")
@@ -74,7 +108,21 @@ def main() -> int:
         print(f"Ads received: {ads_count}")
         print(f"Ad URLs: {ad_url_count}")
         print(f"Campaign report rows: {report_rows_count}")
+        stats = {
+            "client_logins": len(logins),
+            "campaigns": campaigns_count,
+            "ads": ads_count,
+            "ad_urls": ad_url_count,
+            "campaign_report_rows": report_rows_count,
+            "filtered_rows": filtered_rows_count,
+            "unique_urls": len(url_rows),
+        }
+        output_path = Path(args.output)
+        write_urls_file(output_path, url_rows, stats)
+
+        print(f"Filtered invalid rows: {filtered_rows_count}")
         print(f"Unique URLs: {len(url_rows)}")
+        print(f"URLs file: {output_path}")
         print("campaign_ids\tsources\turl\timpressions")
         for url, row in sorted(url_rows.items()):
             print(
