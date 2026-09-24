@@ -21,7 +21,7 @@ pipeline {
         stage('Run read-only campaigns probe') {
             steps {
                 withCredentials([
-                    string(credentialsId: 'YANDEX_DIRECT_LOGINS', variable: 'YANDEX_DIRECT_LOGINS'),
+                    string(credentialsId: 'YANDEX_DIRECT_LOGIN', variable: 'YANDEX_DIRECT_LOGIN'),
                     string(credentialsId: 'YANDEX_DIRECT_TOKEN', variable: 'YANDEX_DIRECT_TOKEN')
                 ]) {
                     sh 'python3 --version'
