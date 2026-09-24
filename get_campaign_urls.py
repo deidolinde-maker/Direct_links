@@ -121,7 +121,8 @@ def main() -> int:
 
     print(
         f"Campaign: {campaign['Id']}\t{campaign['Name']}\t"
-        f"type={campaign['Type']}\tstate={campaign['State']}\tstatus={campaign['Status']}"
+        f"type={campaign['Type']}\tstate={campaign.get('State', 'UNKNOWN')}\t"
+        f"status={campaign.get('Status', 'UNKNOWN')}"
     )
     ads = result.get("Ads", [])
     print(f"Ads received: {len(ads)}")
