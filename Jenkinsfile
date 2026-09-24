@@ -25,8 +25,8 @@ pipeline {
                     string(credentialsId: 'YANDEX_DIRECT_TOKEN', variable: 'YANDEX_DIRECT_TOKEN')
                 ]) {
                     sh 'python3 --version'
-                    // Export all campaign-level URLs visible to this Client-Login.
-                    sh 'python3 export_campaign_urls.py'
+                    // Merge ad-level URLs with campaign-level URLs from Reports.
+                    sh 'python3 export_all_urls.py'
                 }
             }
         }
