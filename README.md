@@ -13,10 +13,14 @@ Jenkins credentials → /campaigns → CampaignId → /ads → Href
 
 Configure these credentials as environment variables:
 
-- `YANDEX_DIRECT_LOGIN`
+- `YANDEX_DIRECT_LOGINS` — список Client-Login, по одному на строку (допустимы
+  также разделители-запятые или пробелы)
 - `YANDEX_DIRECT_TOKEN`
 
-Do not commit their values to the repository or print them in logs.
+Один OAuth-токен используется для всех кабинетов, а `Client-Login` задаёт
+кабинет, к которому относится конкретный запрос. Не коммитьте значения в
+репозиторий и не выводите их в логи. Для локальной обратной совместимости
+скрипт также принимает одиночный `YANDEX_DIRECT_LOGIN`.
 
 ## Run locally or in Jenkins
 
@@ -45,7 +49,8 @@ with the OAuth token rather than one selected client account.
 
 ### 1. Выгрузка ссылок
 
-Раз в неделю Jenkins получает ссылки из двух источников:
+Раз в неделю Jenkins получает ссылки из двух источников для каждого кабинета
+из `YANDEX_DIRECT_LOGINS`:
 
 1. `/json/v5/ads` — URL объявлений для всех доступных кампаний.
 2. `/json/v501/reports` — `CampaignUrlPath` для кампаний, которые не
