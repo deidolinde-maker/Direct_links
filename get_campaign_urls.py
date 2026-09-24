@@ -81,13 +81,24 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("campaign_id", nargs="?", default="109848388")
     parser.add_argument("--api-version", choices=API_ROOTS, default="v5")
+    parser.add_argument(
+        "--campaign-type",
+        choices=("TEXT_CAMPAIGN", "DYNAMIC_TEXT_CAMPAIGN", "UNIFIED_CAMPAIGN", "CPM_BANNER_CAMPAIGN"),
+        help="Use a known campaign type when campaigns.get does not return the campaign",
+    )
     args = parser.parse_args()
     campaign_id = int(args.campaign_id)
     api_root = API_ROOTS[args.api_version]
     try:
         token = required_env("YANDEX_DIRECT_TOKEN")
         login = required_env("YANDEX_DIRECT_LOGIN")
-        campaign = campaign_info(api_root, token, login, campaign_id)
+        try:
+            campaign = campaign_info(api_root, token, login, campaign_id)
+        except RuntimeError as exc:
+            if not args.campaign_type or "was not found" not in str(exc):
+                raise
+            print(f"Campaign metadata was not returned; using supplied type {args.campaign_type}")
+            campaign = {"Id": campaign_id, "Name": "", "Type": args.campaign_type}
         field_name, nested_name = ad_field_names(campaign["Type"])
         result = post_json(
             api_root,

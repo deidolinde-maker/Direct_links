@@ -28,7 +28,7 @@ pipeline {
                     // Query campaigns for the client selected by YANDEX_DIRECT_LOGIN.
                     sh 'python3 get_campaigns.py'
                     // Query the requested campaign directly by ID.
-                    sh 'python3 get_campaign_urls.py --api-version v501 "${DIRECT_CAMPAIGN_ID:-109848388}" || true'
+                    sh 'python3 get_campaign_urls.py --api-version v501 --campaign-type TEXT_CAMPAIGN "${DIRECT_CAMPAIGN_ID:-109848388}"'
                     // Use Reports as a diagnostic fallback for campaign type/access.
                     sh 'python3 get_campaign_report.py "${DIRECT_CAMPAIGN_ID:-109848388}"'
                 }
