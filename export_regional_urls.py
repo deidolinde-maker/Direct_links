@@ -25,14 +25,13 @@ def request_report(token: str, login: str, date_range: str) -> tuple[int, str, d
             "SelectionCriteria": {},
             "FieldNames": [
                 "CampaignId",
-                "AdId",
                 "CampaignUrlPath",
                 "LocationOfPresenceId",
                 "LocationOfPresenceName",
                 "Impressions",
             ],
             "ReportName": f"export_regional_urls_{dt.datetime.now(dt.timezone.utc):%Y%m%d%H%M%S}",
-            "ReportType": "AD_PERFORMANCE_REPORT",
+            "ReportType": "CAMPAIGN_PERFORMANCE_REPORT",
             "DateRangeType": date_range,
             "Format": "TSV",
             "IncludeVAT": "NO",
@@ -83,14 +82,13 @@ def main() -> int:
                         columns = line.split("\t")
                         if len(columns) < 6:
                             continue
-                        campaign_id, ad_id, url, region_id, region_name, impressions = columns[:6]
+                        campaign_id, url, region_id, region_name, impressions = columns[:5]
                         if not url.strip() or not region_name.strip():
                             continue
                         rows.append(
                             {
                                 "login": login,
                                 "campaign_id": campaign_id,
-                                "ad_id": ad_id,
                                 "url": url,
                                 "region_id": region_id,
                                 "region_name": region_name,
