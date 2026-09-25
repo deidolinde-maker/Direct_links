@@ -89,12 +89,32 @@ def main() -> int:
         for login in logins:
             campaigns = load_campaigns(token, login)
             campaigns_count += len(campaigns)
-            campaign_ids = [int(item["Id"]) for item in campaigns if item.get("Id") is not None]
-            ads = load_ads(token, login, campaign_ids)
+            campaign_types = {
+                int(item["Id"]): item.get("Type", "TEXT_CAMPAIGN")
+                for item in campaigns
+                if item.get("Id") is not None
+            }
+            campaign_ids = list(campaign_types)
+            ads = load_ads(token, login, campaign_ids, campaign_types)
             ads_count += len(ads)
 
             for ad in ads:
-                nested = ad.get("TextAd") or ad.get("TextImageAd") or ad.get("ResponsiveAd") or {}
+                nested = next(
+                    (
+                        ad.get(name)
+                        for name in (
+                            "TextAd",
+                            "DynamicTextAd",
+                            "TextImageAd",
+                            "ResponsiveAd",
+                            "CpmBannerAdBuilderAd",
+                            "SmartAdBuilderAd",
+                            "MobileAppAd",
+                        )
+                        if ad.get(name)
+                    ),
+                    {},
+                )
                 href = nested.get("Href") or ad.get("Href") or ""
                 if not is_valid_url(href):
                     filtered_rows_count += 1
