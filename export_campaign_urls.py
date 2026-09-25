@@ -69,7 +69,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--date-range",
-        choices=("LAST_30_DAYS", "ALL_TIME"),
+        choices=("LAST_7_DAYS", "LAST_30_DAYS", "ALL_TIME"),
         default="LAST_30_DAYS",
         help="Period used to identify campaigns with available URLs",
     )

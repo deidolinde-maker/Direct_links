@@ -37,6 +37,16 @@ prints campaign ID, name, type, state, and status.
 Campaign IDs are sent in batches and all `/ads` pages are read. The API quota
 itself is not bypassed; pagination only prevents truncating the result set.
 
+Для экспериментальной выгрузки за последние 7 дней без объединения дублей:
+
+```powershell
+python export_all_urls.py --date-range LAST_7_DAYS --keep-duplicates
+```
+
+Период применяется к Reports API. `ads.get` возвращает доступные объявления
+без отдельного фильтра по дате. Jenkins использует этот режим для текущей
+проверочной выгрузки.
+
 `get_campaign_urls.py` probes one campaign by ID. The Jenkins parameter
 `DIRECT_CAMPAIGN_ID` defaults to `109848388`; the script first reads the
 campaign type and then requests the matching `Href` field for its ads.
