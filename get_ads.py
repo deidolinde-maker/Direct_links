@@ -14,12 +14,13 @@ ADS_API_URL = "https://api.direct.yandex.com/json/v5/ads"
 CAMPAIGN_BATCH_SIZE = 10
 
 AD_FIELD_SPECS = {
-    "TEXT_CAMPAIGN": ("TextAdFieldNames", "TextAd"),
-    "DYNAMIC_TEXT_CAMPAIGN": ("DynamicTextAdFieldNames", "DynamicTextAd"),
-    "UNIFIED_CAMPAIGN": ("ResponsiveAdFieldNames", "ResponsiveAd"),
-    "CPM_BANNER_CAMPAIGN": ("CpmBannerAdBuilderAdFieldNames", "CpmBannerAdBuilderAd"),
-    "SMART_CAMPAIGN": ("SmartAdBuilderAdFieldNames", "SmartAdBuilderAd"),
-    "MOBILE_APP_CAMPAIGN": ("MobileAppAdFieldNames", "MobileAppAd"),
+    "TEXT_CAMPAIGN": ("TextAdFieldNames", "TextAd", True),
+    "DYNAMIC_TEXT_CAMPAIGN": ("DynamicTextAdFieldNames", "DynamicTextAd", True),
+    "UNIFIED_CAMPAIGN": ("ResponsiveAdFieldNames", "ResponsiveAd", True),
+    "CPM_BANNER_CAMPAIGN": ("CpmBannerAdBuilderAdFieldNames", "CpmBannerAdBuilderAd", False),
+    "SMART_CAMPAIGN": ("SmartAdBuilderAdFieldNames", "SmartAdBuilderAd", False),
+    "MOBILE_APP_CAMPAIGN": ("MobileAppAdFieldNames", "MobileAppAd", False),
+    "LISTING_CAMPAIGN": ("ListingAdFieldNames", "ListingAd", True),
 }
 
 
@@ -29,13 +30,14 @@ def request_ads_page(
     campaign_ids: list[int],
     offset: int,
     field_name: str = "TextAdFieldNames",
+    include_sitelink_set_id: bool = False,
 ) -> tuple[list[dict], int | None]:
     payload = {
         "method": "get",
         "params": {
             "SelectionCriteria": {"CampaignIds": campaign_ids},
             "FieldNames": ["Id", "CampaignId", "AdGroupId", "State", "Status"],
-            field_name: ["Href"],
+            field_name: ["Href"] + (["SitelinkSetId"] if include_sitelink_set_id else []),
             "Page": {"Limit": 1000, "Offset": offset},
         },
     }
@@ -79,18 +81,28 @@ def load_ads(
     campaign_types: dict[int, str] | None = None,
 ) -> list[dict]:
     ads: list[dict] = []
-    grouped_ids: dict[str, list[int]] = {}
+    grouped_ids: dict[tuple[str, bool], list[int]] = {}
     for campaign_id in campaign_ids:
         campaign_type = (campaign_types or {}).get(campaign_id, "TEXT_CAMPAIGN")
-        field_name = AD_FIELD_SPECS.get(campaign_type, ("TextAdFieldNames", "TextAd"))[0]
-        grouped_ids.setdefault(field_name, []).append(campaign_id)
+        field_name, _nested_name, include_sitelink_set_id = AD_FIELD_SPECS.get(
+            campaign_type, ("TextAdFieldNames", "TextAd", True)
+        )
+        group_key = (field_name, include_sitelink_set_id)
+        grouped_ids.setdefault(group_key, []).append(campaign_id)
 
-    for field_name, typed_campaign_ids in grouped_ids.items():
+    for (field_name, include_sitelink_set_id), typed_campaign_ids in grouped_ids.items():
         for start in range(0, len(typed_campaign_ids), CAMPAIGN_BATCH_SIZE):
             batch = typed_campaign_ids[start : start + CAMPAIGN_BATCH_SIZE]
             offset = 0
             while True:
-                page, limited_by = request_ads_page(token, login, batch, offset, field_name)
+                page, limited_by = request_ads_page(
+                    token,
+                    login,
+                    batch,
+                    offset,
+                    field_name,
+                    include_sitelink_set_id,
+                )
                 ads.extend(page)
                 if not page or len(page) < 1000 or limited_by is None:
                     break

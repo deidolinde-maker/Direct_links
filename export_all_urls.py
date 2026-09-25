@@ -12,8 +12,9 @@ from urllib.parse import urlparse
 
 from export_campaign_urls import request_report
 from direct_logins import required_logins
-from get_ads import load_ads
+from get_ads import AD_FIELD_SPECS, load_ads
 from get_campaigns import load_campaigns, required_env
+from get_sitelinks import load_sitelinks
 
 
 def is_valid_url(value: str) -> bool:
@@ -65,6 +66,8 @@ def main() -> int:
         url_rows: list[dict] = []
         url_index: dict[str, dict] = {}
         ad_url_count = 0
+        sitelink_url_count = 0
+        sitelink_set_count = 0
 
         def add_url(url: str, campaign_id: str, source: str, impressions: str = "") -> None:
             row = {
@@ -97,6 +100,7 @@ def main() -> int:
             campaign_ids = list(campaign_types)
             ads = load_ads(token, login, campaign_ids, campaign_types)
             ads_count += len(ads)
+            sitelink_ids: set[int] = set()
 
             for ad in ads:
                 nested = next(
@@ -115,12 +119,26 @@ def main() -> int:
                     ),
                     {},
                 )
+                if nested.get("SitelinkSetId") is not None:
+                    sitelink_ids.add(int(nested["SitelinkSetId"]))
                 href = nested.get("Href") or ad.get("Href") or ""
                 if not is_valid_url(href):
                     filtered_rows_count += 1
                     continue
                 ad_url_count += 1
                 add_url(href, str(ad.get("CampaignId", "")), "ad")
+
+            # Sitelinks are separate API objects and are not included in the ad Href.
+            sitelink_sets = load_sitelinks(token, login, sorted(sitelink_ids))
+            sitelink_set_count += len(sitelink_sets)
+            for sitelink_set in sitelink_sets:
+                for sitelink in sitelink_set.get("Sitelinks", []):
+                    href = sitelink.get("Href") or ""
+                    if not is_valid_url(href):
+                        filtered_rows_count += 1
+                        continue
+                    sitelink_url_count += 1
+                    add_url(href, "", "sitelink")
 
             for attempt in range(1, 6):
                 status, body, headers = request_report(token, login, args.date_range)
@@ -151,12 +169,16 @@ def main() -> int:
         print(f"Campaigns received: {campaigns_count}")
         print(f"Ads received: {ads_count}")
         print(f"Ad URLs: {ad_url_count}")
+        print(f"Sitelink sets: {sitelink_set_count}")
+        print(f"Sitelink URLs: {sitelink_url_count}")
         print(f"Campaign report rows: {report_rows_count}")
         stats = {
             "client_logins": len(logins),
             "campaigns": campaigns_count,
             "ads": ads_count,
             "ad_urls": ad_url_count,
+            "sitelink_sets": sitelink_set_count,
+            "sitelink_urls": sitelink_url_count,
             "campaign_report_rows": report_rows_count,
             "filtered_rows": filtered_rows_count,
             "url_rows": len(url_rows),
