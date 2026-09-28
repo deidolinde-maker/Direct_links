@@ -79,10 +79,10 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", default="check_urls.json")
     parser.add_argument("--output", default="availability.json")
-    parser.add_argument("--workers", type=int, default=20)
-    parser.add_argument("--timeout", type=float, default=15)
+    parser.add_argument("--workers", type=int, default=100)
+    parser.add_argument("--timeout", type=float, default=5)
     parser.add_argument("--retries", type=int, default=3)
-    parser.add_argument("--retry-delay", type=float, default=1)
+    parser.add_argument("--retry-delay", type=float, default=0.2)
     args = parser.parse_args()
     if args.workers < 1 or args.retries < 0 or args.timeout <= 0:
         raise SystemExit("workers must be positive, retries non-negative, timeout positive")
@@ -95,8 +95,12 @@ def main() -> int:
             executor.submit(check_one, item, args.retries, args.timeout, args.retry_delay): item
             for item in items
         }
+        completed = 0
         for future in as_completed(futures):
             results.append(future.result())
+            completed += 1
+            if completed == len(items) or completed % 500 == 0:
+                print(f"Progress: {completed}/{len(items)}")
     results.sort(key=lambda row: row["url"])
     ok_count = sum(row["status"] == "OK" for row in results)
     error_count = len(results) - ok_count
