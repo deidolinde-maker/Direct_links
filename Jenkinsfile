@@ -28,7 +28,8 @@ pipeline {
                     // Merge ad-level URLs with campaign-level URLs from Reports.
                     sh 'python3 export_all_urls.py --date-range LAST_7_DAYS --keep-duplicates'
                     sh 'python3 export_regional_urls.py --date-range LAST_7_DAYS'
-                    archiveArtifacts artifacts: 'urls.json,regional_urls.json', fingerprint: true
+                    sh 'python3 build_check_file.py --input urls.json --output check_urls.json'
+                    archiveArtifacts artifacts: 'urls.json,regional_urls.json,check_urls.json', fingerprint: true
                 }
             }
         }
