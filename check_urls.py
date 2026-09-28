@@ -55,6 +55,8 @@ def check_one(item: dict, retries: int, timeout: float, retry_delay: float) -> d
         except (ValueError, UnicodeError) as exc:
             last_error = f"INVALID_URL: {exc}"
             break
+        except OSError as exc:
+            last_error = f"NETWORK_OS_ERROR: {exc}"
         if attempt < attempts:
             sleep(retry_delay)
 
@@ -75,11 +77,31 @@ def check_one(item: dict, retries: int, timeout: float, retry_delay: float) -> d
     return result
 
 
+def write_output(path: Path, input_file: str, results: list[dict], args: argparse.Namespace, complete: bool) -> None:
+    ok_count = sum(row["status"] == "OK" for row in results)
+    error_count = len(results) - ok_count
+    output = {
+        "checked_at": now_moscow(),
+        "complete": complete,
+        "input_file": input_file,
+        "stats": {
+            "total": len(results),
+            "ok": ok_count,
+            "errors": error_count,
+            "workers": args.workers,
+            "timeout_seconds": args.timeout,
+            "retries": args.retries,
+        },
+        "results": sorted(results, key=lambda row: row["url"]),
+    }
+    path.write_text(json.dumps(output, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", default="check_urls.json")
     parser.add_argument("--output", default="availability.json")
-    parser.add_argument("--workers", type=int, default=100)
+    parser.add_argument("--workers", type=int, default=50)
     parser.add_argument("--timeout", type=float, default=5)
     parser.add_argument("--retries", type=int, default=3)
     parser.add_argument("--retry-delay", type=float, default=0.2)
@@ -97,27 +119,32 @@ def main() -> int:
         }
         completed = 0
         for future in as_completed(futures):
-            results.append(future.result())
+            item = futures[future]
+            try:
+                results.append(future.result())
+            except Exception as exc:  # Keep one unexpected URL failure from aborting the run.
+                results.append(
+                    {
+                        "url": item["url"],
+                        "checked_at": now_moscow(),
+                        "status": "ERROR",
+                        "http_code": None,
+                        "error": f"CHECKER_EXCEPTION: {exc}",
+                        "attempts": 0,
+                        "duration_seconds": 0,
+                        "campaign_ids": item.get("campaign_ids", []),
+                        "sources": item.get("sources", []),
+                        "regions": item.get("regions", []),
+                    }
+                )
             completed += 1
             if completed == len(items) or completed % 500 == 0:
                 print(f"Progress: {completed}/{len(items)}")
-    results.sort(key=lambda row: row["url"])
+            if completed % 500 == 0:
+                write_output(Path(args.output), args.input, results, args, complete=False)
+    write_output(Path(args.output), args.input, results, args, complete=True)
     ok_count = sum(row["status"] == "OK" for row in results)
     error_count = len(results) - ok_count
-    output = {
-        "checked_at": now_moscow(),
-        "input_file": args.input,
-        "stats": {
-            "total": len(results),
-            "ok": ok_count,
-            "errors": error_count,
-            "workers": args.workers,
-            "timeout_seconds": args.timeout,
-            "retries": args.retries,
-        },
-        "results": results,
-    }
-    Path(args.output).write_text(json.dumps(output, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"Checked: {len(results)}")
     print(f"OK: {ok_count}")
     print(f"Errors: {error_count}")

@@ -49,7 +49,7 @@ pipeline {
             steps {
                 sh 'test -s check_urls.json'
                 catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                    sh 'python3 check_urls.py --input check_urls.json --output availability.json --workers 100 --timeout 5 --retries 3 --retry-delay 0.2'
+                    sh 'python3 check_urls.py --input check_urls.json --output availability.json --workers 50 --timeout 5 --retries 3 --retry-delay 0.2'
                 }
                 archiveArtifacts artifacts: 'availability.json', fingerprint: true
             }
