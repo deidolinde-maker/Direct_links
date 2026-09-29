@@ -10,11 +10,11 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 
 TRACKING_PARAM_NAMES = {
-    "ad_id", "adgroupid", "added", "addedphrases", "addedphrasestext",
-    "block", "campaign_id", "device", "gbid", "keyword", "phrase_id",
-    "position", "position_type", "region_id", "region_name", "retargeting",
+    "ad", "ad_id", "adgroupid", "added", "addedphrases", "addedphrasestext",
+    "block", "campaign_id", "cm_id", "device", "gbid", "keyword", "phrase_id",
+    "phrase", "position", "position_type", "region_id", "region_name", "retargeting",
     "roistat", "roistat_pos", "roistat_referrer", "rs_stat", "source",
-    "source_type", "yclid", "gclid", "fbclid", "openstat",
+    "source_type", "yclid", "gclid", "fbclid", "openstat", "yagla",
 }
 
 
