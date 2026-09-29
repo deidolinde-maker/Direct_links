@@ -73,6 +73,7 @@ def check_one(item: dict, retries: int, timeout: float, retry_delay: float) -> d
         "campaign_ids": item.get("campaign_ids", []),
         "sources": item.get("sources", []),
         "regions": item.get("regions", []),
+        "source_urls": item.get("source_urls", []),
     }
     return result
 
@@ -135,6 +136,7 @@ def main() -> int:
                         "campaign_ids": item.get("campaign_ids", []),
                         "sources": item.get("sources", []),
                         "regions": item.get("regions", []),
+                        "source_urls": item.get("source_urls", []),
                     }
                 )
             completed += 1

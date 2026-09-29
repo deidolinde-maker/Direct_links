@@ -6,7 +6,45 @@ import argparse
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+
+TRACKING_PARAM_NAMES = {
+    "ad_id", "adgroupid", "added", "addedphrases", "addedphrasestext",
+    "block", "campaign_id", "device", "gbid", "keyword", "phrase_id",
+    "position", "position_type", "region_id", "region_name", "retargeting",
+    "roistat", "roistat_pos", "roistat_referrer", "rs_stat", "source",
+    "source_type", "yclid", "gclid", "fbclid", "openstat",
+}
+
+
+def is_tracking_param(name: str) -> bool:
+    normalized = name.strip().lower()
+    return normalized in TRACKING_PARAM_NAMES or normalized.startswith("utm_")
+
+
+def normalize_url(value: str) -> str:
+    """Return the page URL without advertising and analytics parameters."""
+    parsed = urlsplit(value.strip())
+    query = []
+    for name, query_value in parse_qsl(parsed.query, keep_blank_values=True):
+        if is_tracking_param(name):
+            continue
+        # A macro is not a concrete page region. If a URL contains both a
+        # concrete region and {region_id}, keep only the concrete value.
+        if name.strip().lower() == "region" and ("{" in query_value or "}" in query_value):
+            continue
+        query.append((name, query_value))
+    query = sorted(set(query))
+    return urlunsplit(
+        (
+            parsed.scheme.lower(),
+            parsed.netloc.lower(),
+            parsed.path or "/",
+            urlencode(query),
+            "",
+        )
+    )
 
 
 def build(input_path: Path, output_path: Path) -> dict:
@@ -16,17 +54,20 @@ def build(input_path: Path, output_path: Path) -> dict:
         url = str(row.get("url", "")).strip()
         if not url:
             continue
-        parsed = urlsplit(url)
-        region = parse_qs(parsed.query).get("region", [""])[0]
+        canonical_url = normalize_url(url)
+        parsed = urlsplit(canonical_url)
+        region = dict(parse_qsl(parsed.query, keep_blank_values=True)).get("region", "")
         current = merged.setdefault(
-            url,
+            canonical_url,
             {
-                "url": url,
+                "url": canonical_url,
+                "source_urls": set(),
                 "campaign_ids": set(),
                 "sources": set(),
                 "regions": set(),
             },
         )
+        current["source_urls"].add(url)
         current["campaign_ids"].update(str(value) for value in row.get("campaign_ids", []))
         current["sources"].update(str(value) for value in row.get("sources", []))
         if region and "{" not in region and "}" not in region:
@@ -37,6 +78,7 @@ def build(input_path: Path, output_path: Path) -> dict:
         urls.append(
             {
                 "url": row["url"],
+                "source_urls": sorted(row["source_urls"]),
                 "campaign_ids": sorted(row["campaign_ids"]),
                 "sources": sorted(row["sources"]),
                 "regions": sorted(row["regions"]),
