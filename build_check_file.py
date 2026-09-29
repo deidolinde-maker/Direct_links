@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, unquote, urlencode, urlsplit, urlunsplit
 
 
 TRACKING_PARAM_NAMES = {
@@ -16,6 +17,7 @@ TRACKING_PARAM_NAMES = {
     "roistat", "roistat_pos", "roistat_referrer", "rs_stat", "source",
     "source_type", "yclid", "gclid", "fbclid", "openstat", "yagla",
 }
+CYRILLIC_RE = re.compile(r"[\u0400-\u04ff]")
 
 
 def is_tracking_param(name: str) -> bool:
@@ -47,12 +49,22 @@ def normalize_url(value: str) -> str:
     )
 
 
+def contains_cyrillic(value: str) -> bool:
+    return bool(CYRILLIC_RE.search(unquote(value)))
+
+
 def build(input_path: Path, output_path: Path) -> dict:
     payload = json.loads(input_path.read_text(encoding="utf-8"))
     merged: dict[str, dict] = {}
+    excluded_cyrillic_rows = 0
+    excluded_cyrillic_urls: set[str] = set()
     for row in payload.get("urls", []):
         url = str(row.get("url", "")).strip()
         if not url:
+            continue
+        if contains_cyrillic(url):
+            excluded_cyrillic_rows += 1
+            excluded_cyrillic_urls.add(url)
             continue
         canonical_url = normalize_url(url)
         parsed = urlsplit(canonical_url)
@@ -92,6 +104,8 @@ def build(input_path: Path, output_path: Path) -> dict:
             "source_rows": len(payload.get("urls", [])),
             "unique_urls": len(urls),
             "urls_with_concrete_region": sum(1 for row in urls if row["regions"]),
+            "excluded_cyrillic_rows": excluded_cyrillic_rows,
+            "excluded_cyrillic_urls": len(excluded_cyrillic_urls),
         },
         "urls": urls,
     }
@@ -108,6 +122,8 @@ def main() -> int:
     print(f"Source rows: {result['stats']['source_rows']}")
     print(f"Unique URLs: {result['stats']['unique_urls']}")
     print(f"URLs with concrete region: {result['stats']['urls_with_concrete_region']}")
+    print(f"Excluded Cyrillic URL rows: {result['stats']['excluded_cyrillic_rows']}")
+    print(f"Excluded unique Cyrillic URLs: {result['stats']['excluded_cyrillic_urls']}")
     print(f"Check file: {args.output}")
     return 0
 
