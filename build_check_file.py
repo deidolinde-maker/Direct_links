@@ -7,7 +7,7 @@ import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import parse_qsl, unquote, urlencode, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit, urlunsplit
 
 
 TRACKING_PARAM_NAMES = {
@@ -38,6 +38,11 @@ def normalize_url(value: str) -> str:
             continue
         query.append((name, query_value))
     query = sorted(set(query))
+    if parsed.netloc.lower() == "dom-provider.online":
+        params = dict(query)
+        region = params.get("region", "")
+        if parsed.path in ("", "/") and region and "f" in params:
+            return urlunsplit((parsed.scheme.lower(), parsed.netloc.lower(), f"/{quote(region, safe='-')}", "", ""))
     return urlunsplit(
         (
             parsed.scheme.lower(),

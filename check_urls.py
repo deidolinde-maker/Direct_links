@@ -103,7 +103,7 @@ def main() -> int:
     parser.add_argument("--input", default="check_urls.json")
     parser.add_argument("--output", default="availability.json")
     parser.add_argument("--workers", type=int, default=50)
-    parser.add_argument("--timeout", type=float, default=10)
+    parser.add_argument("--timeout", type=float, default=15)
     parser.add_argument("--retries", type=int, default=3)
     parser.add_argument("--retry-delay", type=float, default=0.2)
     args = parser.parse_args()
