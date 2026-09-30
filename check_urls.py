@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import socket
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from time import monotonic, sleep
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.parse import quote
+from urllib.request import ProxyHandler, Request, build_opener
 from zoneinfo import ZoneInfo
 
 
@@ -21,7 +23,7 @@ def now_moscow() -> str:
     return datetime.now(MOSCOW).isoformat(timespec="seconds")
 
 
-def check_one(item: dict, retries: int, timeout: float, retry_delay: float) -> dict:
+def check_one(item: dict, retries: int, timeout: float, retry_delay: float, opener) -> dict:
     url = item["url"]
     attempts = retries + 1
     last_error = ""
@@ -34,7 +36,7 @@ def check_one(item: dict, retries: int, timeout: float, retry_delay: float) -> d
                 headers={"User-Agent": "DirectLinksAvailabilityChecker/1.0"},
                 method="GET",
             )
-            with urlopen(request, timeout=timeout) as response:
+            with opener.open(request, timeout=timeout) as response:
                 response.read(1)
                 last_code = response.status
             if last_code == 200:
@@ -92,6 +94,7 @@ def write_output(path: Path, input_file: str, results: list[dict], args: argpars
             "workers": args.workers,
             "timeout_seconds": args.timeout,
             "retries": args.retries,
+            "proxy_enabled": getattr(args, "proxy_enabled", False),
         },
         "results": sorted(results, key=lambda row: row["url"]),
     }
@@ -106,16 +109,33 @@ def main() -> int:
     parser.add_argument("--timeout", type=float, default=15)
     parser.add_argument("--retries", type=int, default=3)
     parser.add_argument("--retry-delay", type=float, default=0.2)
+    parser.add_argument(
+        "--proxy-creds-env",
+        default="BROWSER_PROXY_CREDS",
+        help="Environment variable with proxy credentials in host:port:user:password format",
+    )
     args = parser.parse_args()
     if args.workers < 1 or args.retries < 0 or args.timeout <= 0:
         raise SystemExit("workers must be positive, retries non-negative, timeout positive")
 
     payload = json.loads(Path(args.input).read_text(encoding="utf-8"))
     items = payload.get("urls", [])
+    raw_proxy = os.getenv(args.proxy_creds_env, "").strip()
+    args.proxy_enabled = bool(raw_proxy)
+    opener = build_opener()
+    if raw_proxy:
+        parts = raw_proxy.split(":", 3)
+        if len(parts) != 4 or not all(parts):
+            raise SystemExit("Proxy credentials must have host:port:user:password format")
+        host, port, user, password = parts
+        if not port.isdigit():
+            raise SystemExit("Proxy port must be numeric")
+        proxy_url = f"http://{quote(user, safe='')}:{quote(password, safe='')}@{host}:{port}"
+        opener = build_opener(ProxyHandler({"http": proxy_url, "https": proxy_url}))
     results = []
     with ThreadPoolExecutor(max_workers=args.workers) as executor:
         futures = {
-            executor.submit(check_one, item, args.retries, args.timeout, args.retry_delay): item
+            executor.submit(check_one, item, args.retries, args.timeout, args.retry_delay, opener): item
             for item in items
         }
         completed = 0

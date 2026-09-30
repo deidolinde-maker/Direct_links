@@ -49,9 +49,15 @@ pipeline {
             steps {
                 sh 'test -s check_urls.json'
                 catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                    sh 'python3 check_urls.py --input check_urls.json --output availability.json --workers 50 --timeout 15 --retries 3 --retry-delay 0.2'
+                    withCredentials([
+                        string(credentialsId: 'browser_proxy_creds', variable: 'BROWSER_PROXY_CREDS')
+                    ]) {
+                        sh 'python3 check_urls.py --input check_urls.json --output availability.json --workers 50 --timeout 15 --retries 3 --retry-delay 0.2 --proxy-creds-env BROWSER_PROXY_CREDS'
+                    }
                 }
-                archiveArtifacts artifacts: 'availability.json', fingerprint: true
+                sh 'rm -rf allure-results && python3 generate_allure.py --input availability.json --output allure-results'
+                archiveArtifacts artifacts: 'availability.json,allure-results/**', fingerprint: true
+                allure includeProperties: false, jdk: '', results: [[path: 'allure-results']]
             }
         }
     }
