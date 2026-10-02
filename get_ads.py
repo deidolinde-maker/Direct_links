@@ -31,15 +31,15 @@ def request_ads_page(
     offset: int,
     field_name: str = "TextAdFieldNames",
     include_sitelink_set_id: bool = False,
+    active_only: bool = True,
 ) -> tuple[list[dict], int | None]:
+    selection_criteria = {"CampaignIds": campaign_ids}
+    if active_only:
+        selection_criteria.update({"States": ["ON"], "Statuses": ["ACCEPTED"]})
     payload = {
         "method": "get",
         "params": {
-            "SelectionCriteria": {
-                "CampaignIds": campaign_ids,
-                "States": ["ON"],
-                "Statuses": ["ACCEPTED"],
-            },
+            "SelectionCriteria": selection_criteria,
             "FieldNames": ["Id", "CampaignId", "AdGroupId", "State", "Status"],
             field_name: ["Href"] + (["SitelinkSetId"] if include_sitelink_set_id else []),
             "Page": {"Limit": 1000, "Offset": offset},
@@ -83,6 +83,7 @@ def load_ads(
     login: str,
     campaign_ids: list[int],
     campaign_types: dict[int, str] | None = None,
+    active_only: bool = True,
 ) -> list[dict]:
     ads: list[dict] = []
     grouped_ids: dict[tuple[str, bool], list[int]] = {}
@@ -106,6 +107,7 @@ def load_ads(
                     offset,
                     field_name,
                     include_sitelink_set_id,
+                    active_only,
                 )
                 ads.extend(page)
                 if not page or len(page) < 1000 or limited_by is None:

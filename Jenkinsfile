@@ -5,8 +5,8 @@ pipeline {
         string(name: 'DIRECT_CAMPAIGN_ID', defaultValue: '109848388', description: 'Campaign ID for targeted Href probe')
         choice(
             name: 'RUN_MODE',
-            choices: ['EXPORT_AND_PREPARE', 'CHECK_ONLY'],
-            description: 'EXPORT_AND_PREPARE обновляет URL-файлы; CHECK_ONLY проверяет сохранённый check_urls.json'
+            choices: ['EXPORT_AND_PREPARE', 'DISCOVER_REQUIRED_URLS', 'CHECK_ONLY'],
+            description: 'EXPORT_AND_PREPARE обновляет URL-файлы; DISCOVER_REQUIRED_URLS ищет обязательные домены; CHECK_ONLY проверяет check_urls.json'
         )
     }
 
@@ -58,6 +58,21 @@ pipeline {
                 sh 'rm -rf allure-results && python3 generate_allure.py --input availability.json --output allure-results'
                 archiveArtifacts artifacts: 'availability.json,allure-results/**', fingerprint: true
                 allure includeProperties: false, jdk: '', results: [[path: 'allure-results']]
+            }
+        }
+
+        stage('Discover required URLs') {
+            when {
+                expression { params.RUN_MODE == 'DISCOVER_REQUIRED_URLS' }
+            }
+            steps {
+                withCredentials([
+                    string(credentialsId: 'YANDEX_DIRECT_LOGIN', variable: 'YANDEX_DIRECT_LOGIN'),
+                    string(credentialsId: 'YANDEX_DIRECT_TOKEN', variable: 'YANDEX_DIRECT_TOKEN')
+                ]) {
+                    sh 'python3 find_required_urls.py --domains-file required_domains.txt --date-range LAST_7_DAYS --output required_urls.json'
+                    archiveArtifacts artifacts: 'required_urls.json', fingerprint: true
+                }
             }
         }
     }

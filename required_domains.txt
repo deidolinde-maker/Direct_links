@@ -1,0 +1,7 @@
+# Domains that must be located in Direct before adding their URLs to the regular scope.
+mts-home-online.ru
+t2-ru.online
+beeline-ru.online
+rtk-ru.online
+mega-premium.ru
+providerdom.ru
