@@ -18,6 +18,7 @@ TRACKING_PARAM_NAMES = {
     "source_type", "yclid", "gclid", "fbclid", "openstat", "yagla",
 }
 CYRILLIC_RE = re.compile(r"[\u0400-\u04ff]")
+REGIONAL_SUBDOMAIN_DOMAINS = {"rtk-ru.online", "beeline-ru.online"}
 
 
 def is_tracking_param(name: str) -> bool:
@@ -25,7 +26,7 @@ def is_tracking_param(name: str) -> bool:
     return normalized in TRACKING_PARAM_NAMES or normalized.startswith("utm_")
 
 
-def normalize_url(value: str) -> str:
+def normalize_url(value: str, regional_subdomain: bool = False) -> str:
     """Return the page URL without advertising and analytics parameters."""
     parsed = urlsplit(value.strip())
     query = []
@@ -38,6 +39,12 @@ def normalize_url(value: str) -> str:
             continue
         query.append((name, query_value))
     query = sorted(set(query))
+    host = parsed.netloc.lower()
+    if regional_subdomain and host in REGIONAL_SUBDOMAIN_DOMAINS:
+        path_parts = [part for part in parsed.path.split("/") if part]
+        if len(path_parts) == 1 and not any(char in path_parts[0] for char in ".{}"):
+            region = quote(unquote(path_parts[0]).lower(), safe="-")
+            return urlunsplit(("https", f"{region}.{host}", "/", "", ""))
     if parsed.netloc.lower() == "dom-provider.online":
         params = dict(query)
         region = params.get("region", "")
@@ -71,7 +78,10 @@ def build(input_path: Path, output_path: Path) -> dict:
             excluded_cyrillic_rows += 1
             excluded_cyrillic_urls.add(url)
             continue
-        canonical_url = normalize_url(url)
+        required_source = any(
+            str(source).startswith("required_") for source in row.get("sources", [])
+        )
+        canonical_url = normalize_url(url, regional_subdomain=required_source)
         parsed = urlsplit(canonical_url)
         region = dict(parse_qsl(parsed.query, keep_blank_values=True)).get("region", "")
         current = merged.setdefault(
