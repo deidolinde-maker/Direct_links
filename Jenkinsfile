@@ -35,9 +35,11 @@ pipeline {
                     sh 'python3 --version'
                     // Merge ad-level URLs with campaign-level URLs from Reports.
                     sh 'python3 export_all_urls.py --date-range LAST_7_DAYS --keep-duplicates'
+                    sh 'python3 find_required_urls.py --domains-file required_domains.txt --date-range LAST_7_DAYS --output required_urls.json'
+                    sh 'python3 merge_required_urls.py --base urls.json --required required_urls.json --output urls_with_required.json'
                     sh 'python3 export_regional_urls.py --date-range LAST_7_DAYS'
-                    sh 'python3 build_check_file.py --input urls.json --output check_urls.json'
-                    archiveArtifacts artifacts: 'urls.json,regional_urls.json,check_urls.json', fingerprint: true
+                    sh 'python3 build_check_file.py --input urls_with_required.json --output check_urls.json'
+                    archiveArtifacts artifacts: 'urls.json,required_urls.json,urls_with_required.json,regional_urls.json,check_urls.json', fingerprint: true
                 }
             }
         }
