@@ -22,11 +22,34 @@ def required_env(name: str) -> str:
     return value
 
 
-def request_report(token: str, login: str, date_range: str) -> tuple[int, str, dict[str, str]]:
+def request_report(
+    token: str,
+    login: str,
+    date_range: str,
+    campaign_ids: list[int] | None = None,
+) -> tuple[int, str, dict[str, str]]:
     report_name = f"export_campaign_urls_{dt.datetime.now(dt.timezone.utc):%Y%m%d%H%M%S}"
+    report_filters = [
+        {
+            "Field": "Impressions",
+            "Operator": "GREATER_THAN",
+            "Values": ["0"],
+        }
+    ]
+    if campaign_ids:
+        report_filters.insert(
+            0,
+            {
+                "Field": "CampaignId",
+                "Operator": "IN",
+                "Values": [str(value) for value in campaign_ids],
+            },
+        )
     payload = {
         "params": {
-            "SelectionCriteria": {},
+            "SelectionCriteria": {
+                "Filter": report_filters
+            },
             "FieldNames": [
                 "CampaignId",
                 "CampaignName",

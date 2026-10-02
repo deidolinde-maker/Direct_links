@@ -63,6 +63,7 @@ def main() -> int:
         ads_count = 0
         report_rows_count = 0
         filtered_rows_count = 0
+        active_campaigns_count = 0
         url_rows: list[dict] = []
         url_index: dict[str, dict] = {}
         ad_url_count = 0
@@ -92,9 +93,17 @@ def main() -> int:
         for login in logins:
             campaigns = load_campaigns(token, login)
             campaigns_count += len(campaigns)
+            active_campaigns = [
+                item
+                for item in campaigns
+                if item.get("State") == "ON"
+                and item.get("Status") == "ACCEPTED"
+                and item.get("StatusPayment") in (None, "", "ALLOWED")
+            ]
+            active_campaigns_count += len(active_campaigns)
             campaign_types = {
                 int(item["Id"]): item.get("Type", "TEXT_CAMPAIGN")
-                for item in campaigns
+                for item in active_campaigns
                 if item.get("Id") is not None
             }
             campaign_ids = list(campaign_types)
@@ -141,6 +150,9 @@ def main() -> int:
                     add_url(href, "", "sitelink")
 
             for attempt in range(1, 6):
+                # Do not restrict Reports by campaigns.get IDs: some campaign
+                # types are intentionally absent from campaigns.get but can
+                # still provide CampaignUrlPath through Reports.
                 status, body, headers = request_report(token, login, args.date_range)
                 if status == 200:
                     lines = [line for line in body.splitlines() if line.strip()]
@@ -175,6 +187,7 @@ def main() -> int:
         stats = {
             "client_logins": len(logins),
             "campaigns": campaigns_count,
+            "active_campaigns": active_campaigns_count,
             "ads": ads_count,
             "ad_urls": ad_url_count,
             "sitelink_sets": sitelink_set_count,
@@ -184,6 +197,7 @@ def main() -> int:
             "url_rows": len(url_rows),
             "unique_urls": len({row["url"] for row in url_rows}),
             "date_range": args.date_range,
+            "report_filter": "impressions_gt_0",
             "duplicates_kept": args.keep_duplicates,
         }
         output_path = Path(args.output)

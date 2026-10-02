@@ -35,7 +35,11 @@ def request_ads_page(
     payload = {
         "method": "get",
         "params": {
-            "SelectionCriteria": {"CampaignIds": campaign_ids},
+            "SelectionCriteria": {
+                "CampaignIds": campaign_ids,
+                "States": ["ON"],
+                "Statuses": ["ACCEPTED"],
+            },
             "FieldNames": ["Id", "CampaignId", "AdGroupId", "State", "Status"],
             field_name: ["Href"] + (["SitelinkSetId"] if include_sitelink_set_id else []),
             "Page": {"Limit": 1000, "Offset": offset},
